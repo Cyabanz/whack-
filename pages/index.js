@@ -9,6 +9,8 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [csrfToken, setCsrfToken] = useState(null);
+  const [showJoinModal, setShowJoinModal] = useState(false);
+  const [joinSessionId, setJoinSessionId] = useState('');
 
   // Fetch CSRF token on mount
   useEffect(() => {
@@ -42,7 +44,7 @@ export default function Home() {
     }
   };
 
-  const createSession = async () => {
+  const createSession = async (isShared = false, joinSessionId = null) => {
     if (!csrfToken) {
       setError('CSRF token not available. Please refresh the page.');
       return;
@@ -58,6 +60,10 @@ export default function Home() {
           'Content-Type': 'application/json',
           'X-CSRF-Token': csrfToken,
         },
+        body: JSON.stringify({
+          isShared,
+          joinSessionId
+        })
       });
 
       if (response.ok) {
@@ -68,9 +74,18 @@ export default function Home() {
           adminToken: data.adminToken,
           expiresAt: data.expiresAt,
           inactivityTimeout: data.inactivityTimeout,
+          isShared: data.isShared,
+          connectedIPs: data.connectedIPs,
+          connectedCount: data.connectedCount,
+          isJoining: data.isJoining,
           createdAt: Date.now(),
           lastActivity: Date.now()
         });
+        
+        if (joinSessionId) {
+          setShowJoinModal(false);
+          setJoinSessionId('');
+        }
       } else {
         const errorData = await response.json();
         setError(errorData.error || 'Failed to create session');
@@ -81,6 +96,14 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const joinSharedSession = async () => {
+    if (!joinSessionId.trim()) {
+      setError('Please enter a valid session ID');
+      return;
+    }
+    await createSession(false, joinSessionId.trim());
   };
 
   const terminateSession = async () => {
@@ -179,13 +202,31 @@ export default function Home() {
                         <li>• Rate limiting (10 requests/minute)</li>
                       </ul>
                     </div>
-                    <button
-                      onClick={createSession}
-                      disabled={loading || !csrfToken}
-                      className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      {loading ? 'Creating Session...' : 'Start Virtual Browser'}
-                    </button>
+                    <div className="grid grid-cols-1 gap-3">
+                      <button
+                        onClick={() => createSession(false)}
+                        disabled={loading || !csrfToken}
+                        className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {loading ? 'Creating Session...' : 'Start Private Browser'}
+                      </button>
+                      
+                      <button
+                        onClick={() => createSession(true)}
+                        disabled={loading || !csrfToken}
+                        className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {loading ? 'Creating Session...' : 'Start Shared Browser'}
+                      </button>
+                      
+                      <button
+                        onClick={() => setShowJoinModal(true)}
+                        disabled={loading || !csrfToken}
+                        className="w-full bg-purple-600 text-white py-2 px-4 rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        Join Shared Session
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -193,17 +234,35 @@ export default function Home() {
           ) : (
             <div className="space-y-6">
               <div className="bg-white rounded-lg shadow p-4">
-                <div className="flex justify-between items-center">
-                  <h2 className="text-lg font-semibold text-gray-900">
-                    Virtual Browser Session
-                  </h2>
+                <div className="flex justify-between items-center mb-4">
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-900">
+                      {session.isShared ? 'Shared Virtual Browser' : 'Private Virtual Browser'}
+                    </h2>
+                    {session.isShared && (
+                      <div className="text-sm text-gray-600 mt-1">
+                        <p>Session ID: <span className="font-mono bg-gray-100 px-2 py-1 rounded">{session.id}</span></p>
+                        <p>Connected Users: {session.connectedCount}</p>
+                        {session.isJoining && <p className="text-green-600">✓ Successfully joined shared session</p>}
+                      </div>
+                    )}
+                  </div>
                   <button
                     onClick={terminateSession}
                     className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors text-sm"
                   >
-                    End Session
+                    {session.isShared ? 'Leave Session' : 'End Session'}
                   </button>
                 </div>
+                
+                {session.isShared && (
+                  <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-4">
+                    <h3 className="font-medium text-blue-900 text-sm">Share this session:</h3>
+                    <p className="text-xs text-blue-800 mt-1">
+                      Share the Session ID above with others to let them join this browser session.
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="bg-white rounded-lg shadow overflow-hidden">
@@ -223,6 +282,51 @@ export default function Home() {
             </p>
           </div>
         </footer>
+
+        {/* Join Session Modal */}
+        {showJoinModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Join Shared Session
+              </h3>
+              <div className="space-y-4">
+                <div>
+                  <label htmlFor="sessionId" className="block text-sm font-medium text-gray-700 mb-2">
+                    Session ID
+                  </label>
+                  <input
+                    type="text"
+                    id="sessionId"
+                    value={joinSessionId}
+                    onChange={(e) => setJoinSessionId(e.target.value)}
+                    placeholder="Enter session ID to join..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div className="flex space-x-3">
+                  <button
+                    onClick={joinSharedSession}
+                    disabled={loading || !joinSessionId.trim()}
+                    className="flex-1 bg-purple-600 text-white py-2 px-4 rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {loading ? 'Joining...' : 'Join Session'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowJoinModal(false);
+                      setJoinSessionId('');
+                      setError(null);
+                    }}
+                    className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </ErrorBoundary>
   );

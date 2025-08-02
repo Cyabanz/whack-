@@ -5,22 +5,24 @@ A secure Hyperbeam VM application with CSRF token protection, session management
 ## 🚀 Features
 
 - **Hyperbeam VM Integration**: Full virtual browser functionality
-- **CSRF Protection**: Token-based CSRF protection for all state-changing operations
+- **Shared Sessions**: Multiple users can join the same browser session
+- **CSRF Protection**: Random token-based CSRF protection per session
 - **Session Management**: 10-minute session limit with automatic cleanup
 - **Inactivity Timeout**: Automatic termination after 30 seconds of inactivity
 - **Rate Limiting**: 10 requests per minute per IP address
 - **Secure Headers**: Comprehensive security headers and CSP
 - **Real-time Session Monitoring**: Live session status and activity tracking
 - **Error Handling**: Comprehensive error boundaries and graceful degradation
-- **TypeScript**: Full type safety throughout the application
+- **JavaScript**: Modern ES6+ JavaScript with React and Next.js
 - **Responsive Design**: Modern, accessible UI with Tailwind CSS
 
 ## 🔒 Security Features
 
 ### CSRF Protection
-- Unique CSRF tokens generated for each session
+- Random CSRF tokens generated per session (no secret required)
 - Token validation for all POST/PUT/DELETE/PATCH requests
-- 5-minute token expiration with automatic refresh
+- 5-minute token expiration with automatic cleanup
+- Session-specific token validation
 
 ### Session Management
 - 10-minute maximum session duration
@@ -44,7 +46,7 @@ A secure Hyperbeam VM application with CSRF token protection, session management
 
 - Node.js 18+ 
 - Hyperbeam API Key ([Get one here](https://hyperbeam.com))
-- Vercel account for deployment
+- Vercel account for deployment (optional)
 
 ## 🛠️ Installation
 
@@ -67,8 +69,8 @@ A secure Hyperbeam VM application with CSRF token protection, session management
    Edit `.env.local` and add your configuration:
    ```env
    HYPERBEAM_API_KEY=your_hyperbeam_api_key_here
-   CSRF_SECRET=your_random_32_char_csrf_secret_here
    ```
+   Note: CSRF tokens are now generated automatically per session
 
 4. **Run the development server:**
    ```bash
@@ -93,7 +95,6 @@ A secure Hyperbeam VM application with CSRF token protection, session management
 
 3. **Set environment variables in Vercel dashboard:**
    - `HYPERBEAM_API_KEY`
-   - `CSRF_SECRET`
 
 4. **Your application will be available at your Vercel URL**
 
@@ -102,11 +103,12 @@ A secure Hyperbeam VM application with CSRF token protection, session management
 | Variable | Required | Description | Default |
 |----------|----------|-------------|---------|
 | `HYPERBEAM_API_KEY` | ✅ | Your Hyperbeam API key | - |
-| `CSRF_SECRET` | ✅ | Random 32-character secret for CSRF tokens | - |
 | `SESSION_TIMEOUT` | ❌ | Session timeout in milliseconds | 600000 (10 min) |
 | `INACTIVITY_TIMEOUT` | ❌ | Inactivity timeout in milliseconds | 30000 (30 sec) |
 | `RATE_LIMIT_REQUESTS` | ❌ | Max requests per minute per IP | 10 |
 | `RATE_LIMIT_WINDOW` | ❌ | Rate limit window in milliseconds | 60000 (1 min) |
+
+**Note:** CSRF tokens are now generated automatically per session - no secret configuration needed!
 
 ## 📁 Project Structure
 
@@ -145,9 +147,11 @@ A secure Hyperbeam VM application with CSRF token protection, session management
 
 ### Session Management
 
-- `POST /api/session/create` - Create new VM session
+- `POST /api/session/create` - Create new VM session (private or shared)
 - `POST /api/session/heartbeat` - Keep session alive
 - `POST /api/session/terminate` - End session
+- `GET /api/session/shared?sessionId=xxx` - Get shared session info
+- `POST /api/session/shared` - Join shared session
 
 All endpoints include:
 - Rate limiting (10 req/min per IP)
@@ -157,23 +161,36 @@ All endpoints include:
 
 ## 🎯 Usage
 
-1. **Start a Session:**
-   - Click "Start Virtual Browser"
+### Private Sessions
+1. **Start a Private Session:**
+   - Click "Start Private Browser"
    - System creates secure session with CSRF protection
    - VM launches with 10-minute timeout
 
-2. **Use the Virtual Browser:**
+### Shared Sessions
+1. **Create a Shared Session:**
+   - Click "Start Shared Browser"
+   - Share the displayed Session ID with others
+   - Multiple users can control the same browser
+
+2. **Join a Shared Session:**
+   - Click "Join Shared Session"
+   - Enter the Session ID from another user
+   - Instantly connect to their browser session
+
+### General Usage
+3. **Use the Virtual Browser:**
    - Navigate using browser controls
    - Quick access to Google, YouTube, GitHub
    - Real-time session monitoring in header
 
-3. **Session Management:**
+4. **Session Management:**
    - Automatic heartbeat keeps session alive during activity
    - Warning appears 2 minutes before expiration
    - Automatic termination after 30 seconds of inactivity
 
-4. **End Session:**
-   - Click "End Session" button
+5. **End Session:**
+   - Click "End/Leave Session" button
    - Or wait for automatic timeout
    - VM and local session cleaned up automatically
 

@@ -6,7 +6,8 @@ async function handler(req, res) {
   }
 
   try {
-    const token = CSRFTokenManager.generateToken();
+    const sessionId = req.cookies.sessionId || null;
+    const token = CSRFTokenManager.generateToken(sessionId);
     
     res.status(200).json({
       token,
