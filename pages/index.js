@@ -275,9 +275,20 @@ export default function Home() {
                       </button>
                     </div>
                     
-                    {!csrfToken && (
-                      <div className="mt-2 text-xs text-yellow-600 bg-yellow-50 border border-yellow-200 rounded p-2">
-                        ⚠️ Loading security token... If this persists, check browser console.
+                    {!csrfToken && !error && (
+                      <div className="mt-2 text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded p-2">
+                        🔄 Loading security token...
+                      </div>
+                    )}
+                    
+                    {!csrfToken && !error && (
+                      <div className="mt-2">
+                        <button
+                          onClick={fetchCSRFToken}
+                          className="text-xs bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded"
+                        >
+                          Retry Token Fetch
+                        </button>
                       </div>
                     )}
                   </div>
