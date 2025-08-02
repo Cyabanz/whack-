@@ -20,13 +20,21 @@ export default function Home() {
 
   const fetchCSRFToken = async () => {
     try {
+      console.log('Fetching CSRF token...');
       const response = await fetch('/api/csrf-token');
+      console.log('CSRF token response:', response.status);
       if (response.ok) {
         const data = await response.json();
+        console.log('CSRF token received:', data.token.substring(0, 10) + '...');
         setCsrfToken(data.token);
+      } else {
+        const errorData = await response.json();
+        console.error('CSRF token error:', errorData);
+        setError('Failed to fetch CSRF token: ' + errorData.error);
       }
     } catch (error) {
       console.error('Failed to fetch CSRF token:', error);
+      setError('Network error while fetching CSRF token');
     }
   };
 
@@ -45,21 +53,37 @@ export default function Home() {
   };
 
   const createSession = async (isShared = false, joinSessionId = null) => {
-    if (!csrfToken) {
-      setError('CSRF token not available. Please refresh the page.');
-      return;
-    }
-
     setLoading(true);
     setError(null);
+    
+    // Try to get CSRF token if not available
+    let tokenToUse = csrfToken;
+    if (!tokenToUse) {
+      console.log('No CSRF token available, fetching...');
+      try {
+        const response = await fetch('/api/csrf-token');
+        if (response.ok) {
+          const data = await response.json();
+          tokenToUse = data.token;
+          setCsrfToken(data.token);
+        } else {
+          throw new Error('Failed to fetch CSRF token');
+        }
+      } catch (error) {
+        console.error('Failed to fetch CSRF token:', error);
+        setError('Failed to get security token. Please refresh the page.');
+        setLoading(false);
+        return;
+      }
+    }
 
     try {
-      const response = await fetch('/api/session/create', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-Token': csrfToken,
-        },
+              const response = await fetch('/api/session/create', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': tokenToUse,
+          },
         body: JSON.stringify({
           isShared,
           joinSessionId
@@ -107,14 +131,28 @@ export default function Home() {
   };
 
   const terminateSession = async () => {
-    if (!csrfToken) return;
+    // Get current CSRF token or fetch new one
+    let tokenToUse = csrfToken;
+    if (!tokenToUse) {
+      try {
+        const response = await fetch('/api/csrf-token');
+        if (response.ok) {
+          const data = await response.json();
+          tokenToUse = data.token;
+          setCsrfToken(data.token);
+        }
+      } catch (error) {
+        console.error('Failed to fetch CSRF token for termination:', error);
+        return;
+      }
+    }
 
     try {
       const response = await fetch('/api/session/terminate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-Token': csrfToken,
+          'X-CSRF-Token': tokenToUse,
         },
       });
 
@@ -205,7 +243,7 @@ export default function Home() {
                     <div className="grid grid-cols-1 gap-3">
                       <button
                         onClick={() => createSession(false)}
-                        disabled={loading || !csrfToken}
+                        disabled={loading}
                         className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
                         {loading ? 'Creating Session...' : 'Start Private Browser'}
@@ -213,7 +251,7 @@ export default function Home() {
                       
                       <button
                         onClick={() => createSession(true)}
-                        disabled={loading || !csrfToken}
+                        disabled={loading}
                         className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
                         {loading ? 'Creating Session...' : 'Start Shared Browser'}
@@ -221,12 +259,18 @@ export default function Home() {
                       
                       <button
                         onClick={() => setShowJoinModal(true)}
-                        disabled={loading || !csrfToken}
+                        disabled={loading}
                         className="w-full bg-purple-600 text-white py-2 px-4 rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
                         Join Shared Session
                       </button>
                     </div>
+                    
+                    {!csrfToken && (
+                      <div className="mt-2 text-xs text-yellow-600 bg-yellow-50 border border-yellow-200 rounded p-2">
+                        ⚠️ Loading security token... If this persists, check browser console.
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
