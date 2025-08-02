@@ -48,13 +48,30 @@ async function handler(req, res) {
         });
       }
       
-      const hyperbeamClient = new HyperbeamClient();
-      hyperbeamSession = await hyperbeamClient.createSession({
-        width: 1280,
-        height: 720,
-        ublock: true,
-        autoplay: false
-      });
+      try {
+        console.log('Creating Hyperbeam client...');
+        const hyperbeamClient = new HyperbeamClient();
+        console.log('Hyperbeam client created, calling createSession...');
+        
+        hyperbeamSession = await hyperbeamClient.createSession({
+          width: 1280,
+          height: 720,
+          ublock: true,
+          autoplay: false
+        });
+        
+        console.log('Hyperbeam session created successfully:', {
+          sessionId: hyperbeamSession.session_id,
+          hasEmbedUrl: !!hyperbeamSession.embed_url
+        });
+      } catch (hyperbeamError) {
+        console.error('Hyperbeam API error:', hyperbeamError);
+        return res.status(500).json({
+          error: 'Failed to create Hyperbeam session',
+          details: hyperbeamError.message,
+          type: 'HyperbeamError'
+        });
+      }
 
       // Store Hyperbeam embed URL in session
       session.hyperbeamEmbedUrl = hyperbeamSession.embed_url;
@@ -88,7 +105,16 @@ async function handler(req, res) {
     });
   } catch (error) {
     console.error('Failed to create session:', error);
-    res.status(500).json({ error: 'Failed to create session' });
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+    res.status(500).json({ 
+      error: 'Failed to create session',
+      details: error.message,
+      type: error.name || 'Unknown'
+    });
   }
 }
 
