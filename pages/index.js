@@ -44,11 +44,16 @@ export default function Home() {
 
   const checkExistingSession = async () => {
     try {
+      console.log('Checking for existing session...');
       const response = await fetch('/api/session/status');
       if (response.ok) {
         const data = await response.json();
+        console.log('Session status response:', data);
         if (data.hasSession) {
+          console.log('Found existing session, setting state:', data.session);
           setSession(data.session);
+        } else {
+          console.log('No existing session found');
         }
       }
     } catch (error) {
@@ -101,7 +106,8 @@ export default function Home() {
 
       if (response.ok) {
         const data = await response.json();
-        setSession({
+        console.log('Session created successfully:', data);
+        const sessionData = {
           id: data.sessionId,
           embedUrl: data.embedUrl,
           adminToken: data.adminToken,
@@ -113,7 +119,9 @@ export default function Home() {
           isJoining: data.isJoining,
           createdAt: Date.now(),
           lastActivity: Date.now()
-        });
+        };
+        console.log('Setting session state:', sessionData);
+        setSession(sessionData);
         
         if (joinSessionId) {
           setShowJoinModal(false);
