@@ -39,6 +39,7 @@ const HyperbeamClient = ({ embedUrl, onError }) => {
   const hyperbeamRef = useRef(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   
   const scriptStatus = useScript('https://unpkg.com/@hyperbeam/web@latest/dist/index.js');
 
@@ -134,6 +135,47 @@ const HyperbeamClient = ({ embedUrl, onError }) => {
     }
   };
 
+  const handleFullscreen = () => {
+    if (!containerRef.current) return;
+
+    if (!isFullscreen) {
+      // Enter fullscreen
+      if (containerRef.current.requestFullscreen) {
+        containerRef.current.requestFullscreen();
+      } else if (containerRef.current.webkitRequestFullscreen) {
+        containerRef.current.webkitRequestFullscreen();
+      } else if (containerRef.current.msRequestFullscreen) {
+        containerRef.current.msRequestFullscreen();
+      }
+    } else {
+      // Exit fullscreen
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+      } else if (document.msExitFullscreen) {
+        document.msExitFullscreen();
+      }
+    }
+  };
+
+  // Listen for fullscreen changes
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('msfullscreenchange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('msfullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
   const isReady = scriptStatus === 'ready' && isInitialized;
 
   return (
@@ -188,8 +230,33 @@ const HyperbeamClient = ({ embedUrl, onError }) => {
           </button>
         </div>
 
-        <div className="text-xs text-gray-500">
-          Script: {scriptStatus} | VM: {isInitialized ? 'ready' : 'loading'}
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={handleFullscreen}
+            disabled={isLoading || !isReady}
+            className="px-3 py-1 bg-gray-800 text-white rounded hover:bg-gray-900 disabled:opacity-50 disabled:cursor-not-allowed text-sm flex items-center space-x-1"
+            title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+          >
+            {isFullscreen ? (
+              <>
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 9V4.5M9 9H4.5M9 9L3.5 3.5M15 15v4.5M15 15h4.5M15 15l5.5 5.5M15 9h4.5M15 9V4.5M15 9l5.5-5.5M9 15H4.5M9 15v4.5M9 15l-5.5 5.5" />
+                </svg>
+                <span>Exit Fullscreen</span>
+              </>
+            ) : (
+              <>
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                </svg>
+                <span>Fullscreen</span>
+              </>
+            )}
+          </button>
+          
+          <div className="text-xs text-gray-500">
+            Script: {scriptStatus} | VM: {isInitialized ? 'ready' : 'loading'}
+          </div>
         </div>
       </div>
 
@@ -208,10 +275,10 @@ const HyperbeamClient = ({ embedUrl, onError }) => {
         
         <div
           ref={containerRef}
-          className="w-full bg-white hyperbeam-container"
+          className={`w-full bg-white hyperbeam-container ${isFullscreen ? 'fixed inset-0 z-50' : ''}`}
           style={{ 
-            height: '720px',
-            minHeight: '600px'
+            height: isFullscreen ? '100vh' : '720px',
+            minHeight: isFullscreen ? '100vh' : '600px'
           }}
         />
       </div>

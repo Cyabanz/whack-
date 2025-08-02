@@ -20,18 +20,25 @@ export default function Home() {
 
   const fetchCSRFToken = async () => {
     try {
-      const response = await fetch('/api/csrf-token');
+      const response = await fetch('/api/csrf-token', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
       if (response.ok) {
         const data = await response.json();
         setCsrfToken(data.token);
+        setError(null); // Clear any previous errors
       } else {
-        const errorData = await response.json();
-        console.error('CSRF token error:', errorData);
-        setError('Failed to fetch CSRF token: ' + errorData.error);
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('CSRF token error:', response.status, errorData);
+        setError(`Security token error (${response.status}): ${errorData.error}`);
       }
     } catch (error) {
       console.error('Failed to fetch CSRF token:', error);
-      setError('Network error while fetching CSRF token');
+      setError('Network error: Unable to get security token. Please check your connection.');
     }
   };
 
@@ -57,17 +64,23 @@ export default function Home() {
     let tokenToUse = csrfToken;
     if (!tokenToUse) {
       try {
-        const response = await fetch('/api/csrf-token');
-        if (response.ok) {
-          const data = await response.json();
-          tokenToUse = data.token;
-          setCsrfToken(data.token);
-        } else {
-          throw new Error('Failed to fetch CSRF token');
+        await fetchCSRFToken();
+        tokenToUse = csrfToken;
+        
+        // If still no token after fetching, try one more time
+        if (!tokenToUse) {
+          const response = await fetch('/api/csrf-token');
+          if (response.ok) {
+            const data = await response.json();
+            tokenToUse = data.token;
+            setCsrfToken(data.token);
+          } else {
+            throw new Error(`Failed to fetch CSRF token: ${response.status}`);
+          }
         }
       } catch (error) {
         console.error('Failed to fetch CSRF token:', error);
-        setError('Failed to get security token. Please refresh the page.');
+        setError('Unable to get security token. Please refresh the page and try again.');
         setLoading(false);
         return;
       }
