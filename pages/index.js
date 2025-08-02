@@ -122,7 +122,7 @@ export default function Home() {
     }
 
     try {
-              const response = await fetch('/api/session/create', {
+              const response = await fetch('/api/debug-session-create', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -259,6 +259,19 @@ export default function Home() {
                 </div>
                 <div className="ml-3">
                   <p className="text-sm text-red-700">{error}</p>
+                  <details className="mt-2">
+                    <summary className="text-xs text-red-600 cursor-pointer">Debug Info (Mobile)</summary>
+                    <pre className="text-xs mt-1 bg-red-100 p-2 rounded overflow-auto max-h-32">
+                      {JSON.stringify({
+                        timestamp: new Date().toISOString(),
+                        csrfToken: csrfToken ? 'present' : 'missing',
+                        session: session ? 'present' : 'missing',
+                        loading: loading,
+                        isCreatingSession: isCreatingSession,
+                        error: error
+                      }, null, 2)}
+                    </pre>
+                  </details>
                 </div>
                 <div className="ml-auto pl-3">
                   <button
