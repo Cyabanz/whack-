@@ -11,12 +11,37 @@ export default function Home() {
   const [csrfToken, setCsrfToken] = useState(null);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [joinSessionId, setJoinSessionId] = useState('');
+  const [isCreatingSession, setIsCreatingSession] = useState(false);
 
   // Fetch CSRF token on mount
   useEffect(() => {
     fetchCSRFToken();
-    checkExistingSession();
-  }, []);
+    // Only check for existing session if we're not in the middle of creating one
+    if (!isCreatingSession) {
+      checkExistingSession();
+    }
+  }, [isCreatingSession]);
+
+  // Keep session alive with heartbeat
+  useEffect(() => {
+    if (session && !isCreatingSession) {
+      const heartbeatInterval = setInterval(async () => {
+        try {
+          await fetch('/api/session/heartbeat', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRF-Token': csrfToken
+            }
+          });
+        } catch (error) {
+          console.error('Heartbeat failed:', error);
+        }
+      }, 10000); // Every 10 seconds
+
+      return () => clearInterval(heartbeatInterval);
+    }
+  }, [session, csrfToken, isCreatingSession]);
 
   const fetchCSRFToken = async () => {
     try {
@@ -54,6 +79,10 @@ export default function Home() {
           setSession(data.session);
         } else {
           console.log('No existing session found');
+          // Only clear session if we're not currently creating one
+          if (!isCreatingSession) {
+            setSession(null);
+          }
         }
       }
     } catch (error) {
@@ -64,6 +93,7 @@ export default function Home() {
   const createSession = async (isShared = false, joinSessionId = null) => {
     setLoading(true);
     setError(null);
+    setIsCreatingSession(true);
     
     // Try to get CSRF token if not available
     let tokenToUse = csrfToken;
@@ -127,13 +157,20 @@ export default function Home() {
           setShowJoinModal(false);
           setJoinSessionId('');
         }
+        
+        // Prevent immediate session status check for a few seconds
+        setTimeout(() => {
+          setIsCreatingSession(false);
+        }, 5000);
       } else {
         const errorData = await response.json();
         setError(errorData.error || 'Failed to create session');
+        setIsCreatingSession(false);
       }
     } catch (error) {
       console.error('Failed to create session:', error);
       setError('Network error. Please try again.');
+      setIsCreatingSession(false);
     } finally {
       setLoading(false);
     }
