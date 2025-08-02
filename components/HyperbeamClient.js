@@ -1,13 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 
-interface HyperbeamClientProps {
-  embedUrl: string;
-  onError: (error: string) => void;
-}
-
 // Custom hook to load external scripts
-const useScript = (src: string) => {
-  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+const useScript = (src) => {
+  const [status, setStatus] = useState('loading');
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -39,9 +34,9 @@ const useScript = (src: string) => {
   return status;
 };
 
-const HyperbeamClient: React.FC<HyperbeamClientProps> = ({ embedUrl, onError }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const hyperbeamRef = useRef<any>(null);
+const HyperbeamClient = ({ embedUrl, onError }) => {
+  const containerRef = useRef(null);
+  const hyperbeamRef = useRef(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isInitialized, setIsInitialized] = useState(false);
   
@@ -54,18 +49,18 @@ const HyperbeamClient: React.FC<HyperbeamClientProps> = ({ embedUrl, onError }) 
       try {
         // Wait for global Hyperbeam to be available
         let attempts = 0;
-        while (!(window as any).Hyperbeam && attempts < 50) {
+        while (!window.Hyperbeam && attempts < 50) {
           await new Promise(resolve => setTimeout(resolve, 100));
           attempts++;
         }
 
-        if (!(window as any).Hyperbeam) {
+        if (!window.Hyperbeam) {
           throw new Error('Hyperbeam library failed to load');
         }
 
         if (!containerRef.current) return;
 
-        const Hyperbeam = (window as any).Hyperbeam;
+        const Hyperbeam = window.Hyperbeam;
         
         // Initialize Hyperbeam
         const hb = await Hyperbeam(containerRef.current, embedUrl);
@@ -76,7 +71,7 @@ const HyperbeamClient: React.FC<HyperbeamClientProps> = ({ embedUrl, onError }) 
 
         // Set up event listeners
         if (hb.tabs && hb.tabs.onUpdated) {
-          hb.tabs.onUpdated.addListener((tabId: string, changeInfo: any) => {
+          hb.tabs.onUpdated.addListener((tabId, changeInfo) => {
             console.log('Tab updated:', tabId, changeInfo);
           });
         }
@@ -132,7 +127,7 @@ const HyperbeamClient: React.FC<HyperbeamClientProps> = ({ embedUrl, onError }) 
     }
   };
 
-  const handleNavigate = (url: string) => {
+  const handleNavigate = (url) => {
     if (hyperbeamRef.current && hyperbeamRef.current.tabs) {
       hyperbeamRef.current.tabs.update({ url });
     }

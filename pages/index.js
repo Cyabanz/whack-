@@ -1,14 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import HyperbeamClient from '../components/HyperbeamClient';
 import SessionManager from '../components/SessionManager';
 import ErrorBoundary from '../components/ErrorBoundary';
 
 export default function Home() {
-  const [session, setSession] = useState<any>(null);
+  const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [csrfToken, setCsrfToken] = useState<string | null>(null);
+  const [error, setError] = useState(null);
+  const [csrfToken, setCsrfToken] = useState(null);
 
   // Fetch CSRF token on mount
   useEffect(() => {

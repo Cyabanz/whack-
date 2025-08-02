@@ -1,7 +1,6 @@
-import { NextApiRequest, NextApiResponse } from 'next';
-import { withSecurity, CSRFTokenManager } from '../../lib/security';
+const { withSecurity, CSRFTokenManager } = require('../../lib/security');
 
-async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -19,4 +18,4 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   }
 }
 
-export default withSecurity(handler);
+module.exports = withSecurity(handler);

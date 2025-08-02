@@ -1,18 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
-interface SessionManagerProps {
-  session: any;
-  onSessionExpired: () => void;
-  csrfToken: string | null;
-}
-
-const SessionManager: React.FC<SessionManagerProps> = ({ 
-  session, 
-  onSessionExpired, 
-  csrfToken 
-}) => {
-  const [timeRemaining, setTimeRemaining] = useState<number>(0);
-  const [lastActivity, setLastActivity] = useState<number>(0);
+const SessionManager = ({ session, onSessionExpired, csrfToken }) => {
+  const [timeRemaining, setTimeRemaining] = useState(0);
+  const [lastActivity, setLastActivity] = useState(0);
   const [isWarning, setIsWarning] = useState(false);
 
   // Send heartbeat to keep session alive
@@ -88,13 +78,13 @@ const SessionManager: React.FC<SessionManagerProps> = ({
     };
   }, [session, sendHeartbeat, trackActivity, onSessionExpired]);
 
-  const formatTime = (ms: number): string => {
+  const formatTime = (ms) => {
     const minutes = Math.floor(ms / 60000);
     const seconds = Math.floor((ms % 60000) / 1000);
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  const formatActivityTime = (ms: number): string => {
+  const formatActivityTime = (ms) => {
     if (ms < 1000) return 'now';
     const seconds = Math.floor(ms / 1000);
     if (seconds < 60) return `${seconds}s ago`;

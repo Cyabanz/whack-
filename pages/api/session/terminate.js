@@ -1,8 +1,7 @@
-import { NextApiRequest, NextApiResponse } from 'next';
-import { withSecurity, SessionManager } from '../../../lib/security';
-import { HyperbeamClient } from '../../../lib/hyperbeam';
+const { withSecurity, SessionManager } = require('../../../lib/security');
+const { HyperbeamClient } = require('../../../lib/hyperbeam');
 
-async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -45,4 +44,4 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   }
 }
 
-export default withSecurity(handler);
+module.exports = withSecurity(handler);
