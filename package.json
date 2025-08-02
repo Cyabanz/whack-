@@ -4,7 +4,7 @@
   "description": "Hyperbeam VM application with CSRF protection, session limits, and rate limiting",
   "main": "index.js",
   "scripts": {
-    "dev": "vercel dev",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"

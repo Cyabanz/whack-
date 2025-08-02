@@ -39,4 +39,4 @@ async function handler(req, res) {
   }
 }
 
-module.exports = withSecurity(handler);
+export default withSecurity(handler);

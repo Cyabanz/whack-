@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const { RateLimiter, getClientIP } = require('../../lib/security');
 
 // Simple CSRF token generation without dependencies
 function generateSimpleToken() {
@@ -7,7 +8,7 @@ function generateSimpleToken() {
   return `${timestamp}:${randomBytes}`;
 }
 
-async function handler(req, res) {
+export default async function handler(req, res) {
   // Set CORS headers to prevent CORS issues
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET');
@@ -16,6 +17,26 @@ async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
+
+  // Apply rate limiting
+  const ipAddress = getClientIP(req);
+  if (!RateLimiter.isAllowed(ipAddress)) {
+    const resetTime = RateLimiter.getResetTime(ipAddress);
+    res.setHeader('X-RateLimit-Limit', '10');
+    res.setHeader('X-RateLimit-Remaining', '0');
+    res.setHeader('X-RateLimit-Reset', Math.ceil(resetTime / 1000).toString());
+    return res.status(429).json({
+      error: 'Too many requests',
+      resetTime: resetTime
+    });
+  }
+
+  // Set rate limit headers
+  const remaining = RateLimiter.getRemainingRequests(ipAddress);
+  const resetTime = RateLimiter.getResetTime(ipAddress);
+  res.setHeader('X-RateLimit-Limit', '10');
+  res.setHeader('X-RateLimit-Remaining', remaining.toString());
+  res.setHeader('X-RateLimit-Reset', Math.ceil(resetTime / 1000).toString());
 
   try {
     console.log('Generating CSRF token...');
@@ -34,5 +55,3 @@ async function handler(req, res) {
     });
   }
 }
-
-module.exports = handler;
