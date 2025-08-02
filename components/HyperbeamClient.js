@@ -39,41 +39,14 @@ const HyperbeamClient = ({ embedUrl, onError }) => {
   const hyperbeamRef = useRef(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isInitialized, setIsInitialized] = useState(false);
-  const [isMockMode, setIsMockMode] = useState(false);
   
   const scriptStatus = useScript('https://unpkg.com/@hyperbeam/web@latest/dist/index.js');
 
   useEffect(() => {
-    if (!embedUrl || !containerRef.current || isInitialized) return;
+    if (scriptStatus !== 'ready' || !embedUrl || !containerRef.current || isInitialized) return;
 
     const initializeHyperbeam = async () => {
       try {
-        // Check if this is mock mode
-        if (embedUrl.includes('demo.hyperbeam.com')) {
-          setIsMockMode(true);
-          setIsInitialized(true);
-          setIsLoading(false);
-          
-          // Add mock content
-          if (containerRef.current) {
-            containerRef.current.innerHTML = `
-              <div style="display: flex; align-items: center; justify-content: center; height: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-family: system-ui;">
-                <div style="text-align: center; padding: 2rem;">
-                  <h2 style="margin-bottom: 1rem; font-size: 1.5rem;">🚀 Mock Hyperbeam Session</h2>
-                  <p style="margin-bottom: 1rem; opacity: 0.9;">This is a demo session for development.</p>
-                  <p style="font-size: 0.9rem; opacity: 0.7;">Add your HYPERBEAM_API_KEY to use real sessions.</p>
-                  <div style="margin-top: 2rem; padding: 1rem; background: rgba(255,255,255,0.1); border-radius: 8px;">
-                    <p style="font-size: 0.8rem;">Session Features Working:</p>
-                    <p style="font-size: 0.8rem;">✅ CSRF Protection ✅ Rate Limiting ✅ Session Management</p>
-                  </div>
-                </div>
-              </div>
-            `;
-          }
-          return;
-        }
-
-        if (scriptStatus !== 'ready') return;
 
         // Wait for global Hyperbeam to be available
         let attempts = 0;

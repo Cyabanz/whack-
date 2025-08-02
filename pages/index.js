@@ -20,12 +20,9 @@ export default function Home() {
 
   const fetchCSRFToken = async () => {
     try {
-      console.log('Fetching CSRF token...');
       const response = await fetch('/api/csrf-token');
-      console.log('CSRF token response:', response.status);
       if (response.ok) {
         const data = await response.json();
-        console.log('CSRF token received:', data.token.substring(0, 10) + '...');
         setCsrfToken(data.token);
       } else {
         const errorData = await response.json();
@@ -59,7 +56,6 @@ export default function Home() {
     // Try to get CSRF token if not available
     let tokenToUse = csrfToken;
     if (!tokenToUse) {
-      console.log('No CSRF token available, fetching...');
       try {
         const response = await fetch('/api/csrf-token');
         if (response.ok) {
