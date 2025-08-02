@@ -1,5 +1,5 @@
 // Simple CSRF Token Generation - Pure JavaScript
-const crypto = require('crypto');
+import crypto from 'crypto';
 
 // Simple token generation
 function generateToken() {
@@ -8,7 +8,7 @@ function generateToken() {
   return `${timestamp}:${randomBytes}`;
 }
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET');
@@ -21,7 +21,7 @@ module.exports = async function handler(req, res) {
   try {
     console.log('Generating CSRF token...');
     const token = generateToken();
-    console.log('Token generated');
+    console.log('Token generated:', token.substring(0, 20) + '...');
     
     res.status(200).json({
       token: token,
@@ -34,4 +34,4 @@ module.exports = async function handler(req, res) {
       details: error.message 
     });
   }
-};
+}

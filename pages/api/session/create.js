@@ -1,5 +1,5 @@
-// Pure JavaScript Session Creation
-const { createHyperbeamClient } = require('../../../lib/hyperbeam');
+// Pure JavaScript Session Creation with Shared Sessions
+import { createHyperbeamClient } from '../../../lib/hyperbeam.js';
 
 // Simple CSRF check
 function isValidCSRF(token) {
@@ -15,7 +15,10 @@ function isValidCSRF(token) {
   return ageMinutes <= 5; // Valid for 5 minutes
 }
 
-module.exports = async function handler(req, res) {
+// Simple in-memory session store for shared sessions
+const sharedSessions = new Map();
+
+export default async function handler(req, res) {
   // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -36,13 +39,33 @@ module.exports = async function handler(req, res) {
       return res.status(403).json({ error: 'Invalid CSRF token' });
     }
 
-    console.log('Creating session...');
+    const { isShared = false, joinSessionId = null } = req.body || {};
+    console.log('Creating session... isShared:', isShared, 'joinSessionId:', joinSessionId);
     
-    // Create Hyperbeam client and session
-    const hyperbeam = createHyperbeamClient();
-    const session = await hyperbeam.createSession();
+    let session;
     
-    console.log('Session created:', session.session_id);
+    if (joinSessionId) {
+      // Join existing shared session
+      const existingSession = sharedSessions.get(joinSessionId);
+      if (!existingSession) {
+        return res.status(404).json({ error: 'Shared session not found' });
+      }
+      
+      session = existingSession;
+      console.log('Joined shared session:', joinSessionId);
+    } else {
+      // Create new Hyperbeam session
+      const hyperbeam = createHyperbeamClient();
+      session = await hyperbeam.createSession();
+      
+      if (isShared) {
+        // Store in shared sessions map
+        sharedSessions.set(session.session_id, session);
+        console.log('Created shared session:', session.session_id);
+      } else {
+        console.log('Created private session:', session.session_id);
+      }
+    }
     
     // Set cookie
     res.setHeader('Set-Cookie', 
@@ -54,6 +77,8 @@ module.exports = async function handler(req, res) {
       sessionId: session.session_id,
       embedUrl: session.embed_url,
       adminToken: session.admin_token,
+      isShared: isShared,
+      isJoining: !!joinSessionId,
       success: true
     });
     
@@ -65,4 +90,4 @@ module.exports = async function handler(req, res) {
       details: error.message
     });
   }
-};
+}
