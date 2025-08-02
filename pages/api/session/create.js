@@ -1,5 +1,5 @@
-import { withSecurity, SessionManager, getClientIP } from '../../../lib/security.js';
-import { HyperbeamClient } from '../../../lib/hyperbeam.js';
+const { withSecurity, SessionManager, getClientIP } = require('../../../lib/security');
+const { HyperbeamClient } = require('../../../lib/hyperbeam');
 
 async function handler(req, res) {
   if (req.method !== 'POST') {

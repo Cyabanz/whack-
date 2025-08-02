@@ -1,4 +1,4 @@
-import { withSecurity, SessionManager, getClientIP } from '../../../lib/security.js';
+const { withSecurity, SessionManager, getClientIP } = require('../../../lib/security');
 
 async function handler(req, res) {
   try {
