@@ -42,6 +42,12 @@ async function handler(req, res) {
         timeRemaining,
         timeSinceActivity,
         embedUrl: session.hyperbeamEmbedUrl,
+        adminToken: session.adminToken,
+        expiresAt: session.createdAt + (10 * 60 * 1000),
+        inactivityTimeout: 30 * 1000,
+        isShared: session.isShared,
+        connectedIPs: session.connectedIPs,
+        connectedCount: session.connectedIPs.length,
         willExpireAt: session.createdAt + (10 * 60 * 1000),
         inactivityLimit: 30 * 1000
       }
