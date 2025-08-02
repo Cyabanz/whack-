@@ -1,0 +1,226 @@
+import { NextApiRequest, NextApiResponse } from 'next';
+import crypto from 'crypto';
+
+// CSRF Token Management
+export class CSRFTokenManager {
+  private static secret = process.env.CSRF_SECRET || crypto.randomBytes(32).toString('hex');
+
+  static generateToken(): string {
+    const timestamp = Date.now().toString();
+    const randomBytes = crypto.randomBytes(16).toString('hex');
+    const data = `${timestamp}:${randomBytes}`;
+    const hmac = crypto.createHmac('sha256', this.secret);
+    hmac.update(data);
+    const signature = hmac.digest('hex');
+    return `${data}:${signature}`;
+  }
+
+  static validateToken(token: string): boolean {
+    try {
+      const [timestamp, randomBytes, signature] = token.split(':');
+      if (!timestamp || !randomBytes || !signature) return false;
+
+      // Check if token is expired (5 minutes)
+      const tokenTime = parseInt(timestamp);
+      const now = Date.now();
+      if (now - tokenTime > 5 * 60 * 1000) return false;
+
+      // Verify signature
+      const data = `${timestamp}:${randomBytes}`;
+      const hmac = crypto.createHmac('sha256', this.secret);
+      hmac.update(data);
+      const expectedSignature = hmac.digest('hex');
+
+      return crypto.timingSafeEqual(
+        Buffer.from(signature, 'hex'),
+        Buffer.from(expectedSignature, 'hex')
+      );
+    } catch {
+      return false;
+    }
+  }
+}
+
+// Session Management
+export interface SessionData {
+  id: string;
+  hyperbeamEmbedUrl?: string;
+  createdAt: number;
+  lastActivity: number;
+  ipAddress: string;
+}
+
+export class SessionManager {
+  private static sessions = new Map<string, SessionData>();
+  private static readonly SESSION_TIMEOUT = 10 * 60 * 1000; // 10 minutes
+  private static readonly INACTIVITY_TIMEOUT = 30 * 1000; // 30 seconds
+
+  static createSession(ipAddress: string): SessionData {
+    const sessionId = crypto.randomBytes(32).toString('hex');
+    const now = Date.now();
+    
+    const session: SessionData = {
+      id: sessionId,
+      createdAt: now,
+      lastActivity: now,
+      ipAddress
+    };
+
+    this.sessions.set(sessionId, session);
+    this.scheduleCleanup();
+    
+    return session;
+  }
+
+  static getSession(sessionId: string): SessionData | null {
+    const session = this.sessions.get(sessionId);
+    if (!session) return null;
+
+    const now = Date.now();
+    
+    // Check session timeout (10 minutes)
+    if (now - session.createdAt > this.SESSION_TIMEOUT) {
+      this.sessions.delete(sessionId);
+      return null;
+    }
+
+    // Check inactivity timeout (30 seconds)
+    if (now - session.lastActivity > this.INACTIVITY_TIMEOUT) {
+      this.sessions.delete(sessionId);
+      return null;
+    }
+
+    return session;
+  }
+
+  static updateActivity(sessionId: string): boolean {
+    const session = this.sessions.get(sessionId);
+    if (!session) return false;
+
+    session.lastActivity = Date.now();
+    return true;
+  }
+
+  static deleteSession(sessionId: string): boolean {
+    return this.sessions.delete(sessionId);
+  }
+
+  private static scheduleCleanup(): void {
+    // Clean up expired sessions every minute
+    setTimeout(() => {
+      const now = Date.now();
+      const sessionEntries = Array.from(this.sessions.entries());
+      for (const [sessionId, session] of sessionEntries) {
+        if (
+          now - session.createdAt > this.SESSION_TIMEOUT ||
+          now - session.lastActivity > this.INACTIVITY_TIMEOUT
+        ) {
+          this.sessions.delete(sessionId);
+        }
+      }
+      this.scheduleCleanup();
+    }, 60 * 1000);
+  }
+}
+
+// Rate Limiting
+export class RateLimiter {
+  private static requests = new Map<string, { count: number; resetTime: number }>();
+  private static readonly WINDOW_SIZE = 60 * 1000; // 1 minute
+  private static readonly MAX_REQUESTS = 10; // 10 requests per minute per IP
+
+  static isAllowed(ipAddress: string): boolean {
+    const now = Date.now();
+    const clientData = this.requests.get(ipAddress);
+
+    if (!clientData || now > clientData.resetTime) {
+      // Reset or create new window
+      this.requests.set(ipAddress, {
+        count: 1,
+        resetTime: now + this.WINDOW_SIZE
+      });
+      return true;
+    }
+
+    if (clientData.count >= this.MAX_REQUESTS) {
+      return false;
+    }
+
+    clientData.count++;
+    return true;
+  }
+
+  static getRemainingRequests(ipAddress: string): number {
+    const clientData = this.requests.get(ipAddress);
+    if (!clientData || Date.now() > clientData.resetTime) {
+      return this.MAX_REQUESTS;
+    }
+    return Math.max(0, this.MAX_REQUESTS - clientData.count);
+  }
+
+  static getResetTime(ipAddress: string): number {
+    const clientData = this.requests.get(ipAddress);
+    if (!clientData || Date.now() > clientData.resetTime) {
+      return Date.now() + this.WINDOW_SIZE;
+    }
+    return clientData.resetTime;
+  }
+}
+
+// Utility function to get client IP
+export function getClientIP(req: NextApiRequest): string {
+  const forwarded = req.headers['x-forwarded-for'];
+  const realIp = req.headers['x-real-ip'];
+  
+  if (typeof forwarded === 'string') {
+    return forwarded.split(',')[0].trim();
+  }
+  
+  if (typeof realIp === 'string') {
+    return realIp;
+  }
+  
+  return req.socket.remoteAddress || 'unknown';
+}
+
+// Security middleware
+export function withSecurity(handler: (req: NextApiRequest, res: NextApiResponse) => Promise<void>) {
+  return async (req: NextApiRequest, res: NextApiResponse) => {
+    const ipAddress = getClientIP(req);
+
+    // Rate limiting
+    if (!RateLimiter.isAllowed(ipAddress)) {
+      const resetTime = RateLimiter.getResetTime(ipAddress);
+      res.setHeader('X-RateLimit-Limit', '10');
+      res.setHeader('X-RateLimit-Remaining', '0');
+      res.setHeader('X-RateLimit-Reset', Math.ceil(resetTime / 1000).toString());
+      return res.status(429).json({ 
+        error: 'Too many requests',
+        resetTime: resetTime
+      });
+    }
+
+    // Set rate limit headers
+    const remaining = RateLimiter.getRemainingRequests(ipAddress);
+    const resetTime = RateLimiter.getResetTime(ipAddress);
+    res.setHeader('X-RateLimit-Limit', '10');
+    res.setHeader('X-RateLimit-Remaining', remaining.toString());
+    res.setHeader('X-RateLimit-Reset', Math.ceil(resetTime / 1000).toString());
+
+    // CSRF protection for state-changing operations
+    if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method || '')) {
+      const csrfToken = req.headers['x-csrf-token'] as string;
+      if (!csrfToken || !CSRFTokenManager.validateToken(csrfToken)) {
+        return res.status(403).json({ error: 'Invalid or missing CSRF token' });
+      }
+    }
+
+    // Continue to handler
+    try {
+      await handler(req, res);
+    } catch (error) {
+      console.error('API Error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  };
+}

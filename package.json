@@ -1,0 +1,43 @@
+{
+  "name": "hyperbeam-vm-vercel",
+  "version": "1.0.0",
+  "description": "Hyperbeam VM application with CSRF protection, session limits, and rate limiting",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "^14.0.4",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "@hyperbeam/web": "^0.0.37",
+    "express-rate-limit": "^7.1.5",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0",
+    "cookie-parser": "^1.4.6",
+    "uuid": "^9.0.1",
+    "@types/node": "^20.10.4",
+    "@types/react": "^18.2.43",
+    "@types/react-dom": "^18.2.17",
+    "typescript": "^5.3.3",
+    "tailwindcss": "^3.4.0",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.32"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "hyperbeam",
+    "vm",
+    "vercel",
+    "csrf",
+    "rate-limiting",
+    "session-management"
+  ],
+  "author": "",
+  "license": "MIT"
+}
