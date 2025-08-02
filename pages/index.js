@@ -349,6 +349,21 @@ export default function Home() {
                       >
                         Try Demo
                       </button>
+                      
+                      <button
+                        onClick={async () => {
+                          try {
+                            const response = await fetch('/api/test-hyperbeam-simple');
+                            const data = await response.json();
+                            alert('Simple Test: ' + JSON.stringify(data, null, 2));
+                          } catch (err) {
+                            alert('Simple Test Error: ' + err.message);
+                          }
+                        }}
+                        className="px-2 py-1 bg-purple-600 text-white rounded text-xs"
+                      >
+                        Simple HB Test
+                      </button>
                     </div>
                   </details>
                 </div>
