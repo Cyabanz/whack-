@@ -302,6 +302,21 @@ export default function Home() {
                       >
                         Test CSRF
                       </button>
+                      
+                      <button
+                        onClick={async () => {
+                          try {
+                            const response = await fetch('/api/test-hyperbeam');
+                            const data = await response.json();
+                            alert('Hyperbeam Test: ' + JSON.stringify(data, null, 2));
+                          } catch (err) {
+                            alert('Hyperbeam Error: ' + err.message);
+                          }
+                        }}
+                        className="px-2 py-1 bg-red-600 text-white rounded text-xs"
+                      >
+                        Test Hyperbeam
+                      </button>
                     </div>
                   </details>
                 </div>
