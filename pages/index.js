@@ -122,7 +122,7 @@ export default function Home() {
     }
 
     try {
-              const response = await fetch('/api/session/create', {
+              const response = await fetch('/api/debug-session-create', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -271,6 +271,38 @@ export default function Home() {
                         error: error
                       }, null, 2)}
                     </pre>
+                    
+                    <div className="mt-2 space-x-2">
+                      <button
+                        onClick={async () => {
+                          try {
+                            const response = await fetch('/api/debug-basic');
+                            const data = await response.json();
+                            alert('Basic API Test: ' + JSON.stringify(data, null, 2));
+                          } catch (err) {
+                            alert('Basic API Error: ' + err.message);
+                          }
+                        }}
+                        className="px-2 py-1 bg-gray-600 text-white rounded text-xs"
+                      >
+                        Test API
+                      </button>
+                      
+                      <button
+                        onClick={async () => {
+                          try {
+                            const response = await fetch('/api/csrf-token');
+                            const data = await response.json();
+                            alert('CSRF Test: ' + JSON.stringify(data, null, 2));
+                          } catch (err) {
+                            alert('CSRF Error: ' + err.message);
+                          }
+                        }}
+                        className="px-2 py-1 bg-blue-600 text-white rounded text-xs"
+                      >
+                        Test CSRF
+                      </button>
+                    </div>
                   </details>
                 </div>
                 <div className="ml-auto pl-3">
