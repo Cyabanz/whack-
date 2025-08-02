@@ -317,6 +317,38 @@ export default function Home() {
                       >
                         Test Hyperbeam
                       </button>
+                      
+                      <button
+                        onClick={async () => {
+                          try {
+                            if (!csrfToken) {
+                              const tokenResponse = await fetch('/api/csrf-token');
+                              const tokenData = await tokenResponse.json();
+                              if (!tokenResponse.ok) throw new Error(tokenData.error);
+                              setCsrfToken(tokenData.token);
+                            }
+                            
+                            const response = await fetch('/api/session/create-demo', {
+                              method: 'POST',
+                              headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-Token': csrfToken
+                              }
+                            });
+                            const data = await response.json();
+                            if (response.ok) {
+                              alert('Demo Session Created: ' + JSON.stringify(data, null, 2));
+                            } else {
+                              alert('Demo Error: ' + JSON.stringify(data, null, 2));
+                            }
+                          } catch (err) {
+                            alert('Demo Error: ' + err.message);
+                          }
+                        }}
+                        className="px-2 py-1 bg-green-600 text-white rounded text-xs"
+                      >
+                        Try Demo
+                      </button>
                     </div>
                   </details>
                 </div>
