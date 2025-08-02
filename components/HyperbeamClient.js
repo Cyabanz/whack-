@@ -64,8 +64,31 @@ const HyperbeamClient = ({ embedUrl, onError }) => {
 
         const Hyperbeam = window.Hyperbeam;
         
-        // Initialize Hyperbeam
-        const hb = await Hyperbeam(containerRef.current, embedUrl);
+        // Initialize Hyperbeam with proper options per documentation
+        const hb = await Hyperbeam(containerRef.current, embedUrl, {
+          timeout: 5000, // 5 second connection timeout
+          volume: 0.8,   // Default volume at 80%
+          videoPaused: false,
+          delegateKeyboard: true,
+          onDisconnect: (e) => {
+            console.log('Hyperbeam disconnected:', e.type);
+            if (e.type === 'inactive') {
+              onError('Session ended due to inactivity (30 seconds)');
+            } else if (e.type === 'request') {
+              onError('Session was manually terminated');
+            } else {
+              onError('Connection to virtual browser lost');
+            }
+          },
+          onConnectionStateChange: (e) => {
+            console.log('Connection state changed:', e.state);
+            if (e.state === 'reconnecting') {
+              setIsLoading(true);
+            } else if (e.state === 'playing') {
+              setIsLoading(false);
+            }
+          }
+        });
 
         hyperbeamRef.current = hb;
         setIsInitialized(true);
@@ -76,11 +99,6 @@ const HyperbeamClient = ({ embedUrl, onError }) => {
           hb.tabs.onUpdated.addListener((tabId, changeInfo) => {
             console.log('Tab updated:', tabId, changeInfo);
           });
-        }
-
-        // Volume control
-        if (hb.volume !== undefined) {
-          hb.volume = 0.8;
         }
 
       } catch (error) {
