@@ -1,121 +1,98 @@
-const { withSecurity, SessionManager, getClientIP } = require('../../../lib/security');
+// Session Creation API - Simplified based on Hyperbeam Documentation
 const { HyperbeamClient } = require('../../../lib/hyperbeam');
 
-async function handler(req, res) {
+// Simple CSRF validation
+function validateCSRFToken(token) {
+  if (!token) return false;
+  
+  try {
+    const [timestamp, randomBytes] = token.split(':');
+    if (!timestamp || !randomBytes) return false;
+    
+    const tokenTime = parseInt(timestamp);
+    const now = Date.now();
+    const ageMinutes = (now - tokenTime) / (1000 * 60);
+    
+    return ageMinutes <= 5; // 5 minute expiry
+  } catch {
+    return false;
+  }
+}
+
+export default async function handler(req, res) {
+  // CORS headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-CSRF-Token');
+  
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    const ipAddress = getClientIP(req);
-    const { isShared = false, joinSessionId = null } = req.body || {};
-    
-    let session;
-    
-    // Check if joining an existing shared session
-    if (joinSessionId) {
-      session = SessionManager.joinSharedSession(joinSessionId, ipAddress);
-      if (!session) {
-        return res.status(404).json({ 
-          error: 'Shared session not found or expired'
-        });
-      }
-    } else {
-      // Check if user already has an active session
-      const existingSessionId = req.cookies.sessionId;
-      if (existingSessionId) {
-        const existingSession = SessionManager.getSession(existingSessionId);
-        if (existingSession) {
-          return res.status(400).json({ 
-            error: 'Session already exists',
-            sessionId: existingSession.id
-          });
-        }
-      }
-
-      // Create new session
-      session = SessionManager.createSession(ipAddress, isShared);
-    }
-    
-    // Create Hyperbeam VM session only if not joining existing
-    let hyperbeamSession;
-    if (!joinSessionId) {
-      // Check if Hyperbeam API key is configured
-      if (!process.env.HYPERBEAM_API_KEY) {
-        return res.status(500).json({ 
-          error: 'Hyperbeam API key not configured',
-          details: 'Please set the HYPERBEAM_API_KEY environment variable'
-        });
-      }
-      
-      try {
-        console.log('Creating Hyperbeam client...');
-        const hyperbeamClient = new HyperbeamClient();
-        console.log('Hyperbeam client created, calling createSession...');
-        
-        hyperbeamSession = await hyperbeamClient.createSession({
-          width: 1280,
-          height: 720,
-          ublock: true,
-          autoplay: false
-        });
-        
-        console.log('Hyperbeam session created successfully:', {
-          sessionId: hyperbeamSession.session_id,
-          hasEmbedUrl: !!hyperbeamSession.embed_url
-        });
-      } catch (hyperbeamError) {
-        console.error('Hyperbeam API error:', hyperbeamError);
-        return res.status(500).json({
-          error: 'Failed to create Hyperbeam session',
-          details: hyperbeamError.message,
-          type: 'HyperbeamError'
-        });
-      }
-
-      // Store Hyperbeam embed URL in session
-      session.hyperbeamEmbedUrl = hyperbeamSession.embed_url;
-      session.hyperbeamSessionId = hyperbeamSession.session_id;
-      session.adminToken = hyperbeamSession.admin_token;
-    } else {
-      // Use existing Hyperbeam session data
-      hyperbeamSession = {
-        embed_url: session.hyperbeamEmbedUrl,
-        session_id: session.hyperbeamSessionId,
-        admin_token: session.adminToken
-      };
+    // Validate CSRF token
+    const csrfToken = req.headers['x-csrf-token'];
+    if (!validateCSRFToken(csrfToken)) {
+      return res.status(403).json({ error: 'Invalid or missing CSRF token' });
     }
 
-    // Set session cookie (httpOnly, secure, sameSite)
+    console.log('Creating new Hyperbeam session...');
+    
+    // Initialize Hyperbeam client
+    const hyperbeam = new HyperbeamClient();
+    
+    // Create session with minimal configuration
+    const session = await hyperbeam.createSession({
+      start_url: 'https://jmw-v7.pages.dev',
+      width: 1280,
+      height: 720,
+      ublock: true,
+      region: 'NA'
+    });
+    
+    console.log('Hyperbeam session created:', session.session_id);
+    
+    // Set session cookie
+    const cookieMaxAge = 10 * 60; // 10 minutes
     res.setHeader('Set-Cookie', [
-      `sessionId=${session.id}; HttpOnly; Secure; SameSite=Strict; Max-Age=${10 * 60}; Path=/`,
-      `hyperbeamSessionId=${hyperbeamSession.session_id}; HttpOnly; Secure; SameSite=Strict; Max-Age=${10 * 60}; Path=/`
+      `sessionId=${session.session_id}; HttpOnly; Secure; SameSite=Strict; Max-Age=${cookieMaxAge}; Path=/`,
+      `hyperbeamSessionId=${session.session_id}; HttpOnly; Secure; SameSite=Strict; Max-Age=${cookieMaxAge}; Path=/`
     ]);
-
+    
+    // Return session data
     res.status(201).json({
-      sessionId: session.id,
-      embedUrl: hyperbeamSession.embed_url,
-      adminToken: hyperbeamSession.admin_token,
-      expiresAt: session.createdAt + (10 * 60 * 1000),
-      inactivityTimeout: 30 * 1000,
-      isShared: session.isShared,
-      connectedIPs: session.connectedIPs,
-      connectedCount: session.connectedIPs.length,
-      isJoining: !!joinSessionId
+      sessionId: session.session_id,
+      embedUrl: session.embed_url,
+      adminToken: session.admin_token,
+      expiresAt: Date.now() + (cookieMaxAge * 1000),
+      message: 'Session created successfully'
     });
+    
   } catch (error) {
-    console.error('Failed to create session:', error);
-    console.error('Error details:', {
-      message: error.message,
-      stack: error.stack,
-      name: error.name
-    });
-    res.status(500).json({ 
+    console.error('Session creation failed:', error);
+    
+    // Return specific error based on the error message
+    if (error.message.includes('HYPERBEAM_API_KEY')) {
+      return res.status(500).json({
+        error: 'Hyperbeam API key not configured',
+        details: 'Please set HYPERBEAM_API_KEY environment variable'
+      });
+    }
+    
+    if (error.message.includes('Hyperbeam API error')) {
+      return res.status(500).json({
+        error: 'Hyperbeam API failed',
+        details: error.message
+      });
+    }
+    
+    return res.status(500).json({
       error: 'Failed to create session',
-      details: error.message,
-      type: error.name || 'Unknown'
+      details: error.message
     });
   }
 }
-
-export default withSecurity(handler);
