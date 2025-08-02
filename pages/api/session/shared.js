@@ -1,4 +1,4 @@
-const { withSecurity, SessionManager } = require('../../../lib/security');
+import { withSecurity, SessionManager, getClientIP } from '../../../lib/security.js';
 
 async function handler(req, res) {
   try {
@@ -20,7 +20,7 @@ async function handler(req, res) {
     } else if (req.method === 'POST') {
       // Join shared session
       const { sessionId } = req.body;
-      const ipAddress = require('../../../lib/security').getClientIP(req);
+      const ipAddress = getClientIP(req);
       
       if (!sessionId) {
         return res.status(400).json({ error: 'Session ID required' });

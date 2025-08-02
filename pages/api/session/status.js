@@ -1,4 +1,4 @@
-const { withSecurity, SessionManager } = require('../../../lib/security');
+import { withSecurity, SessionManager } from '../../../lib/security.js';
 
 async function handler(req, res) {
   if (req.method !== 'GET') {

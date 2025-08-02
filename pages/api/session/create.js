@@ -1,5 +1,5 @@
-const { withSecurity, SessionManager, getClientIP } = require('../../../lib/security');
-const { HyperbeamClient } = require('../../../lib/hyperbeam');
+import { withSecurity, SessionManager, getClientIP } from '../../../lib/security.js';
+import { HyperbeamClient } from '../../../lib/hyperbeam.js';
 
 async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -40,6 +40,14 @@ async function handler(req, res) {
     // Create Hyperbeam VM session only if not joining existing
     let hyperbeamSession;
     if (!joinSessionId) {
+      // Check if Hyperbeam API key is configured
+      if (!process.env.HYPERBEAM_API_KEY) {
+        return res.status(500).json({ 
+          error: 'Hyperbeam API key not configured',
+          details: 'Please set the HYPERBEAM_API_KEY environment variable'
+        });
+      }
+      
       const hyperbeamClient = new HyperbeamClient();
       hyperbeamSession = await hyperbeamClient.createSession({
         width: 1280,

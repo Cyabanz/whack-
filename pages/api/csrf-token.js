@@ -1,5 +1,5 @@
-const crypto = require('crypto');
-const { RateLimiter, getClientIP } = require('../../lib/security');
+import crypto from 'crypto';
+import { RateLimiter, getClientIP } from '../../lib/security.js';
 
 // Simple CSRF token generation without dependencies
 function generateSimpleToken() {
