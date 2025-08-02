@@ -1,5 +1,80 @@
-const crypto = require('crypto');
-const { RateLimiter, getClientIP } = require('../../lib/security');
+import crypto from 'crypto';
+
+// Import rate limiting functions - we'll inline them to avoid module issues
+function getClientIP(req) {
+  const forwarded = req.headers['x-forwarded-for'];
+  const realIP = req.headers['x-real-ip'];
+  
+  if (forwarded) {
+    return forwarded.split(',')[0].trim();
+  }
+  
+  if (realIP) {
+    return realIP;
+  }
+  
+  return req.connection?.remoteAddress || 
+         req.socket?.remoteAddress || 
+         req.ip || 
+         '127.0.0.1';
+}
+
+// Simple rate limiter implementation
+const requests = new Map();
+
+const RateLimiter = {
+  isAllowed(ip) {
+    const now = Date.now();
+    const windowMs = 15 * 60 * 1000; // 15 minutes
+    const maxRequests = 10;
+    
+    if (!requests.has(ip)) {
+      requests.set(ip, []);
+    }
+    
+    const userRequests = requests.get(ip);
+    const validRequests = userRequests.filter(time => now - time < windowMs);
+    
+    if (validRequests.length >= maxRequests) {
+      return false;
+    }
+    
+    validRequests.push(now);
+    requests.set(ip, validRequests);
+    return true;
+  },
+  
+  getRemainingRequests(ip) {
+    const now = Date.now();
+    const windowMs = 15 * 60 * 1000;
+    const maxRequests = 10;
+    
+    if (!requests.has(ip)) {
+      return maxRequests;
+    }
+    
+    const userRequests = requests.get(ip);
+    const validRequests = userRequests.filter(time => now - time < windowMs);
+    return Math.max(0, maxRequests - validRequests.length);
+  },
+  
+  getResetTime(ip) {
+    const now = Date.now();
+    const windowMs = 15 * 60 * 1000;
+    
+    if (!requests.has(ip)) {
+      return now + windowMs;
+    }
+    
+    const userRequests = requests.get(ip);
+    if (userRequests.length === 0) {
+      return now + windowMs;
+    }
+    
+    const oldestRequest = Math.min(...userRequests);
+    return oldestRequest + windowMs;
+  }
+};
 
 // Simple CSRF token generation without dependencies
 function generateSimpleToken() {
