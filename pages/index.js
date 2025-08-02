@@ -122,7 +122,7 @@ export default function Home() {
     }
 
     try {
-              const response = await fetch('/api/debug-session-create', {
+              const response = await fetch('/api/session/create', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
